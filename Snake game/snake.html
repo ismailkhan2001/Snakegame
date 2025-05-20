@@ -1,0 +1,237 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smooth Snake Game with Snake Eyes and Body</title>
+  <style>
+    #gameArea {
+      position: relative;
+      width: 400px;
+      height: 400px;
+      background: #eee;
+      border: 2px solid #333;
+      overflow: hidden;
+      background-image: 
+         linear-gradient(to right,#ccc 1px,transparent 1px),
+         linear-gradient(to bottom,#ccc 1px,transparent 1px);
+      background-size: 20px 20px;
+    }
+    .snake-part, #food {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+    }
+    .snake-part {
+      background-color: green;
+      width: 20px;
+      height: 20px;
+      position: absolute;
+      border-radius: 0;
+    }
+    #food {
+      background-color: red;
+    }
+    /* Snake head with face */
+    .snake-head {
+        background-color: green;
+        width: 24px;
+        height: 24px;
+        position: absolute;
+        z-index: 1;
+        border-radius: 50%;
+}   
+    .snake-eyes {
+      position: absolute;
+      background-color: white;
+      border-radius: 50%;
+      width: 6px;
+      height: 6px;
+      top: 5px;
+    }
+    .snake-eye-left {
+      left: 4px;
+    }
+    .snake-eye-right {
+      right: 4px;
+    }
+    /* Mouth */
+    .snake-mouth {
+      position: absolute;
+      width: 12px;
+      height: 6px;
+      background-color: black;
+      bottom: 3px;
+      left: 6px;
+      border-radius: 50%;
+      transform: scaleY(0); /* Initially closed */
+      transition: transform 0.2s ease-in-out;
+    }
+    /* Mouth open animation */
+    .mouth-open {
+      transform: scaleY(1); /* Mouth open */
+    }
+  </style>
+</head>
+<body>
+  <h2>Snake Game (With Snake Eyes Following Food and Snake Body)</h2>
+  <div id="gameArea">
+    <div id="food"></div>
+  </div>
+
+  <script>
+    const gameArea = document.getElementById('gameArea');
+    const foodElement = document.getElementById('food');
+    const gridSize = 20;
+    const pixelSpeed = 2;
+
+    let snake = [{ x: 180, y: 180 }];
+    let headPos = { x: 180, y: 180 };
+    let currentDir = { x: 1, y: 0 }; // moving right initially
+    let nextDir = { x: 1, y: 0 };    // direction to apply at next grid point
+    let food = { x: 100, y: 100 };
+    let mouthOpen = false;
+
+    function generateFood() {
+      food = {
+        x: Math.floor(Math.random() * 20) * gridSize,
+        y: Math.floor(Math.random() * 20) * gridSize,
+      };
+      foodElement.style.left = `${food.x}px`;
+      foodElement.style.top = `${food.y}px`;
+    }
+
+    function renderGame() {
+      document.querySelectorAll('.snake-part').forEach(p => p.remove());
+      document.querySelectorAll('.snake-head').forEach(p => p.remove());
+
+      // Draw each part of the snake body
+      snake.forEach((segment, index) => {
+        if (index === 0) {
+          // Draw the snake head
+          const head = document.createElement('div');
+          head.classList.add('snake-head');
+          head.style.left = `${segment.x}px`;
+          head.style.top = `${segment.y}px`;
+          gameArea.appendChild(head);
+
+          // Draw the snake eyes (always facing the food)
+          const eyeLeft = document.createElement('div');
+          eyeLeft.classList.add('snake-eyes', 'snake-eye-left');
+          head.appendChild(eyeLeft);
+
+          const eyeRight = document.createElement('div');
+          eyeRight.classList.add('snake-eyes', 'snake-eye-right');
+          head.appendChild(eyeRight);
+
+          // Position the eyes based on food direction
+          positionEyesTowardsFood(head);
+
+          // Draw the snake mouth
+          const mouth = document.createElement('div');
+          mouth.classList.add('snake-mouth');
+          if (mouthOpen) {
+            mouth.classList.add('mouth-open'); // Open mouth when eating food
+          }
+          head.appendChild(mouth);
+        } else {
+          // Draw body segments
+          const part = document.createElement('div');
+          part.classList.add('snake-part');
+          part.style.left =` ${segment.x}px`;
+          part.style.top = `${segment.y}px`;
+          gameArea.appendChild(part);
+        }
+      });
+
+      // Draw food
+      foodElement.style.left =` ${food.x}px`;
+      foodElement.style.top = `${food.y}px`;
+    }
+
+    function positionEyesTowardsFood(head) {
+      const dx = food.x - headPos.x;
+      const dy = food.y - headPos.y;
+      const angle = Math.atan2(dy, dx);
+
+      // Adjust eye positions based on the food direction
+      const eyeLeft = head.querySelector('.snake-eye-left');
+      const eyeRight = head.querySelector('.snake-eye-right');
+
+      // Move eyes to look in the direction of the food
+      eyeLeft.style.transform = `translateX(${Math.cos(angle) * 4}px) translateY(${Math.sin(angle) * 4}px)`;
+      eyeRight.style.transform = `translateX(${Math.cos(angle) * 4}px) translateY(${Math.sin(angle) * 4}px)`;
+    }
+
+    function updateSnake() {
+      // Apply direction change only at grid tile
+      if (headPos.x % gridSize === 0 && headPos.y % gridSize === 0) {
+        // Avoid 180-degree turns
+        if (nextDir.x !== -currentDir.x || nextDir.y !== -currentDir.y) {
+          currentDir = { ...nextDir };
+        }
+
+        const newHead = { x: headPos.x, y: headPos.y };
+        snake.unshift(newHead);
+
+        if (newHead.x === food.x && newHead.y === food.y) {
+          mouthOpen = true; // Open mouth when food is eaten
+          generateFood();
+          setTimeout(() => {
+            mouthOpen = false; // Close mouth after a short time
+          }, 500);
+        } else {
+          snake.pop();
+        }
+
+        checkGameOver();
+      }
+
+      headPos.x += currentDir.x * pixelSpeed;
+      headPos.y += currentDir.y * pixelSpeed;
+    }
+
+    function checkGameOver() {
+      const head = snake[0];
+
+      if (head.x < 0 || head.x >= 400 || head.y < 0 || head.y >= 400) {
+        alert('Game Over');
+        resetGame();
+      }
+
+      for (let i = 1; i < snake.length; i++) {
+        if (head.x === snake[i].x && head.y === snake[i].y) {
+          alert('Game Over');
+          resetGame();
+        }
+      }
+    }
+
+    function resetGame() {
+      snake = [{ x: 180, y: 180 }];
+      headPos = { x: 180, y: 180 };
+      currentDir = { x: 1, y: 0 };
+      nextDir = { x: 1, y: 0 };
+      mouthOpen = false; // Reset mouth
+      generateFood();
+    }
+
+    function gameLoop() {
+      updateSnake();
+      renderGame();
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' && currentDir.y === 0) nextDir = { x: 0, y: -1 };
+      if (e.key === 'ArrowDown' && currentDir.y === 0) nextDir = { x: 0, y: 1 };
+      if (e.key === 'ArrowLeft' && currentDir.x === 0) nextDir = { x: -1, y: 0 };
+      if (e.key === 'ArrowRight' && currentDir.x === 0) nextDir = { x: 1, y: 0 };
+    });
+
+    // Start the game
+    generateFood();
+    renderGame();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
